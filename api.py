@@ -130,7 +130,12 @@ class BetaFaceAPI(object):
     def dict_to_str(self, d):
         s = ''
         for i in d:
-            s = '{}={}&'.format(i,d[i])
+            if i == 'base64_data':
+                v = '[BLOB]'
+            else:
+                v = d[i]
+            v = v.replace('/','-')
+            s += '{}={}&'.format(i,v[:254])
         return s[:-1]
 
     def get_cache_file_name(self, endpoint, params):
@@ -144,7 +149,7 @@ class BetaFaceAPI(object):
             cache_file = self.get_cache_file_name(endpoint, params)
 
             if cache_file and os.path.isfile(cache_file):
-                print 'Cache file {}'.format(cache_file)
+                self.logger.info('Using cached file {}'.format(cache_file))
                 return pickle.load(open(cache_file,'rb'))
             else:
                 return None
@@ -201,13 +206,13 @@ class BetaFaceAPI(object):
 
         result = {'raw_content': request.text}
         if endpoint != 'GetImageInfo':
-            self.logger.debug('Response:\n' + request.text)
+            self.logger.debug('Response:\n' + request.content)
 
         request_parser = getattr(self, '_parse_%s' % endpoint, None)
         if request_parser is not None:
             self.logger.info("Using custom response parser for endpoint %s" %
                              endpoint)
-            tree = ElementTree.fromstring(request.text)
+            tree = ElementTree.fromstring(request.content)
             try:
                 parsed_result = request_parser(tree)
             except Exception, e:
