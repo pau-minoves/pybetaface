@@ -5,6 +5,7 @@ import os
 import requests
 import sys
 import time
+import pickle
 from xml.etree import ElementTree
 
 DEFAULT_API_KEY = 'd45fd466-51e2-4701-8da8-04351c872236'
@@ -29,6 +30,7 @@ class BetaFaceAPI(object):
         self.api_secret = kwargs.get('api_secret', DEFAULT_API_SECRET)
         self.api_url = kwargs.get('api_url', DEFAULT_API_URL)
         self.poll_interval = kwargs.get('poll_interval', DEFAULT_POLL_INTERVAL)
+        self.cache = kwargs.get('cache', '')
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def upload_face(self, file_name, person_id):
@@ -123,6 +125,35 @@ class BetaFaceAPI(object):
 
         return result['matches']
 
+    def dict_to_str(self, d):
+        s = ''
+        for i in d:
+            s = '{}={}&'.format(i,d[i])
+        return s[:-1]
+
+    def get_cache_file_name(self, endpoint, params):
+            return '{}/{}?{}'.format(self.cache, endpoint, self.dict_to_str(params))
+
+    def get_api_result_from_cache(self, endpoint, params):
+        if self.cache != '':
+            cache_file = self.get_cache_file_name(endpoint, params)
+
+            if os.path.isfile(cache_file):
+                print 'Cache file {}'.format(cache_file)
+                return pickle.load(open(cache_file,'rb'))
+            else:
+                return None
+        else:
+            return None
+
+
+    def set_api_result_to_cache(self, endpoint, params, result):
+        if self.cache != '':
+            cache_file = self.get_cache_file_name(endpoint, params)
+            pickle.dump( result, open(cache_file, 'w' ))
+
+        return result
+
     def _api_call(self, endpoint, params):
         """ Make an API call to a given endpoint, with given params.
 
@@ -136,6 +167,11 @@ class BetaFaceAPI(object):
         if the request failed.
 
         """
+
+        cached = self.get_api_result_from_cache(endpoint, params)
+        if cached:
+            return cached
+
         api_call_params = {
             'api_key': self.api_key,
             'api_secret': self.api_secret
@@ -179,7 +215,7 @@ class BetaFaceAPI(object):
 
             result.update(parsed_result)
 
-        return result
+        return self.set_api_result_to_cache(endpoint, params, result)
 
     def _render_template(self, template_file, context):
         """ Renders a template to a string, given context vars. """
