@@ -110,7 +110,9 @@ class BetaFaceAPI(object):
             return {}
 
         # Step 3: Start a face recognition job
-        params = {'face_uid': face_uid, 'namespace': 'all@%s' % namespace}
+        if '@' not in namespace:
+            namespace = 'all@' + namespace
+        params = {'face_uid': face_uid, 'namespace': namespace}
         result = self._api_call('RecognizeFaces', params)
         if not result['ready']:
             self.logger.error('RecognizeFaces returned int_response != 0')
