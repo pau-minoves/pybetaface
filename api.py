@@ -134,13 +134,16 @@ class BetaFaceAPI(object):
         return s[:-1]
 
     def get_cache_file_name(self, endpoint, params):
+        if endpoint not in ['GetRecognizeResult', 'GetImageInfo']: # Use to poll for state
             return '{}/{}?{}'.format(self.cache, endpoint, self.dict_to_str(params))
+        else:
+            return None
 
     def get_api_result_from_cache(self, endpoint, params):
         if self.cache != '':
             cache_file = self.get_cache_file_name(endpoint, params)
 
-            if os.path.isfile(cache_file):
+            if cache_file and os.path.isfile(cache_file):
                 print 'Cache file {}'.format(cache_file)
                 return pickle.load(open(cache_file,'rb'))
             else:
@@ -152,7 +155,8 @@ class BetaFaceAPI(object):
     def set_api_result_to_cache(self, endpoint, params, result):
         if self.cache != '':
             cache_file = self.get_cache_file_name(endpoint, params)
-            pickle.dump( result, open(cache_file, 'w' ))
+            if cache_file:
+                pickle.dump( result, open(cache_file, 'w' ))
 
         return result
 
